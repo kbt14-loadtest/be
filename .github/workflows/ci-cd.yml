@@ -1,0 +1,46 @@
+name: BE CI-CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: docker build
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: docker push
+        run: |
+          docker build -t ${{ secrets.DOCKER_USER }}/be .
+          docker push ${{ secrets.DOCKER_USER}}/be
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: ssh key 세팅
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" >> ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: ssh 로그인 및 도커 pull and up
+        run: |
+          ssh -i ~/.ssh/id_rsa  ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << OUTER
+            cd /home/${{ secrets.SERVER_USER }}
+            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USER }}" --password-stdin
+            docker pull ${{ secrets.DOCKER_USER }}/be
+            docker stop be
+            docker rm be
+            docker run -v /home/${{ secrets.SERVER_USER }}/${{ secrets.ENV_PATH }}:/app/.env -p ${{ secrets.API_PORT }}:${{ secrets.API_PORT }} -p ${{ secrets.SOCK_PORT }}:${{ secrets.SOCK_PORT }} -d --name be ${{ secrets.DOCKER_USER }}/be
+          OUTER
