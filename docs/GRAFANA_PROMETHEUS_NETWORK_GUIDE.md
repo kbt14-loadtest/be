@@ -64,7 +64,7 @@ Application Load Balancer (HTTPS:443)
   - 와일드카드 인증서로 모든 서브도메인 지원
   - 예: grafana, prometheus, chat 등
 
-![ACM 인증서 요청](./acm-certificate-request.jpg)
+![ACM 인증서 요청](acm-certificate-request.jpg)
 
 #### 검증 방법
 
@@ -76,7 +76,7 @@ Application Load Balancer (HTTPS:443)
 - 인증서 ID 예시: `f3e3c113-8989-4f83-98d8-48213617ce72`
 - 상태가 **발급됨**으로 변경될 때까지 대기
 
-![ACM 인증서 발급 완료 상태](./acm-certificate-issued.webp)
+![ACM 인증서 발급 완료 상태](acm-certificate-issued.webp)
 
 ---
 
@@ -107,7 +107,7 @@ VPC: vpc-039e4008af90d106a (프로젝트-vpc)
 간격: 30초
 ```
 
-![Grafana 대상 그룹 설정](./target-group-grafana.jpg)
+![Grafana 대상 그룹 설정](target-group-grafana.jpg)
 
 #### 대상 등록
 
@@ -116,7 +116,7 @@ VPC: vpc-039e4008af90d106a (프로젝트-vpc)
 3. **포트**: 3000
 4. **아래에 보류 중인 것으로 포함** 클릭
 
-![인스턴스 선택](./target-group-instances.jpg)
+![인스턴스 선택](target-group-instances.jpg)
 
 ### 2. Prometheus 대상 그룹
 
@@ -143,7 +143,7 @@ VPC: vpc-039e4008af90d106a (프로젝트-vpc)
 간격: 30초
 ```
 
-![Prometheus 대상 그룹 설정](./target-group-prometheus.jpg)
+![Prometheus 대상 그룹 설정](target-group-prometheus.jpg)
 
 #### 대상 등록
 
@@ -173,7 +173,7 @@ VPC: vpc-039e4008af90d106a (프로젝트-vpc)
 인증서 ID: f3e3c113-8989-4f83-98d8-48213617ce72
 ```
 
-![보안 리스너 설정](./alb-listener-security.jpg)
+![보안 리스너 설정](alb-listener-security.jpg)
 
 #### 클라이언트 인증서 처리
 
@@ -224,7 +224,7 @@ Grafana/Prometheus 가 `/api` path 를 사용하고 있어 우선순위를 높�
 작업: 기본 작업 수행
 ```
 
-![리스너 규칙 설정](./alb-listener-rules.jpg)
+![리스너 규칙 설정](alb-listener-rules.jpg)
 
 ---
 
@@ -234,7 +234,7 @@ Grafana/Prometheus 가 `/api` path 를 사용하고 있어 우선순위를 높�
 
 Route 53 호스팅 영역에 다음 레코드 생성:
 
-![Route 53 레코드 생성 화면](./route53-create-record.webp)
+![Route 53 레코드 생성 화면](route53-create-record.webp)
 
 #### 1. Grafana A 레코드
 
@@ -269,7 +269,7 @@ Route 53 호스팅 영역에 다음 레코드 생성:
 별칭: 동일한 로드 밸런서
 ```
 
-![Route 53 레코드](./route53-records.jpg)
+![Route 53 레코드](route53-records.jpg)
 
 ### NS 및 SOA 레코드
 

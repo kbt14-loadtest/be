@@ -377,7 +377,7 @@ rm -f app.pid
 
 KTB Chat Backend는 Prometheus와 Grafana를 활용한 통합 모니터링 스택을 제공합니다.
 
-자세한 내용은 [모니터링 README](./monitoring/README.md)를 참조하세요.
+자세한 내용은 [모니터링 README](monitoring/README.md)를 참조하세요.
 
 ---
 
