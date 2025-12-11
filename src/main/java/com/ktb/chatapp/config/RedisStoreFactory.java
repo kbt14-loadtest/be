@@ -1,6 +1,7 @@
 package com.ktb.chatapp.config;
 
 import com.corundumstudio.socketio.store.RedissonStoreFactory;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
@@ -26,23 +27,22 @@ public class RedisStoreFactory {
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
 
+    @Value("${app.redis.cluster.nodes}")
+    private List<String> clusterNodes;
+
     @Bean
     public RedissonClient redissonClient() {
         Config config = new Config();
-        String address = String.format("redis://%s:%d", redisHost, redisPort);
-
-        config.useSingleServer()
-                .setAddress(address)
-                .setConnectionPoolSize(64)
-                .setConnectionMinimumIdleSize(10)
-                .setSubscriptionConnectionPoolSize(50)
-                .setSubscriptionConnectionMinimumIdleSize(1);
-
+        var cluster = config.useClusterServers()
+            .addNodeAddress(
+                clusterNodes.stream()
+                    .map(node -> node.startsWith("redis://") ? node : "redis://" + node)
+                    .toArray(String[]::new)
+            );
+        // 비밀번호 있으면 여기
         if (redisPassword != null && !redisPassword.isEmpty()) {
-            config.useSingleServer().setPassword(redisPassword);
+            cluster.setPassword(redisPassword);
         }
-
-        log.info("Redisson client configured for Socket.IO with address: {}", address);
         return Redisson.create(config);
     }
 
