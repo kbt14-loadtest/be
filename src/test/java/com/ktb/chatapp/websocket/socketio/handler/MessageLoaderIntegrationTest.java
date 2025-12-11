@@ -14,6 +14,8 @@ import com.ktb.chatapp.service.MessageReadStatusService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.IntStream;
+
+import com.ktb.chatapp.util.image.ImageUtils;
 import net.datafaker.Faker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +46,8 @@ class MessageLoaderIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    private MessageResponseMapper messageResponseMapper;
+
     @Autowired
     private FileRepository fileRepository;
 
@@ -52,6 +56,9 @@ class MessageLoaderIntegrationTest {
 
     @MockitoSpyBean
     private MessageHistoryStore messageHistoryStore;
+
+    @Autowired
+    private ImageUtils imageUtils;
 
     private MessageLoader messageLoader;
     private Faker faker;
@@ -66,8 +73,12 @@ class MessageLoaderIntegrationTest {
 
         // MessageLoader 인스턴스 생성
         messageLoader = new MessageLoader(
+                messageRepository,
+                userRepository,
+                messageResponseMapper,
+                messageReadStatusService,
                 messageHistoryStore,
-                messageReadStatusService
+                imageUtils
         );
 
         // 테스트 사용자 생성 및 저장
