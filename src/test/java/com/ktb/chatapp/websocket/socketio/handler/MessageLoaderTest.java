@@ -9,6 +9,7 @@ import com.ktb.chatapp.repository.MessageRepository;
 import com.ktb.chatapp.repository.UserRepository;
 import com.ktb.chatapp.service.MessageHistoryStore;
 import com.ktb.chatapp.service.MessageReadStatusService;
+import com.ktb.chatapp.util.image.ImageUtils;
 import net.datafaker.Faker;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -31,22 +34,27 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MessageLoaderTest {
-    
-    @Mock
+
+    @Autowired
     private MessageRepository messageRepository;
-    
-    @Mock
+
+    @Autowired
     private UserRepository userRepository;
 
-    @Mock
+    private MessageResponseMapper messageResponseMapper;
+
+    @Autowired
     private FileRepository fileRepository;
-    
-    @Mock
+
+    @MockitoSpyBean
     private MessageReadStatusService messageReadStatusService;
 
-    @Mock
+    @MockitoSpyBean
     private MessageHistoryStore messageHistoryStore;
-    
+
+    @Autowired
+    private ImageUtils imageUtils;
+
     @InjectMocks
     private MessageLoader messageLoader;
 
@@ -61,10 +69,14 @@ class MessageLoaderTest {
         faker = new Faker();
         roomId = faker.internet().uuid();
         userId = faker.internet().uuid();
-        
+
         messageLoader = new MessageLoader(
+                messageRepository,
+                userRepository,
+                messageResponseMapper,
+                messageReadStatusService,
                 messageHistoryStore,
-                messageReadStatusService
+                imageUtils
         );
         
         var testUser = User.builder()
