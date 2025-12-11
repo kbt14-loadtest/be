@@ -1,0 +1,16 @@
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/config/MongoTestContainer.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/config/RedisTestContainer.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/config/SocketIOConfigTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/controller/AuthControllerTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/dto/MessageContentTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/security/SessionAwareJwtAuthenticationConverterTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/service/JwtServiceTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/service/RateLimitServiceTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/service/SessionServiceTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/util/BannedWordCheckerTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/util/EncryptionUtilTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/websocket/socketio/ai/AiServiceIntegrationTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/websocket/socketio/ai/ChunkDataTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/websocket/socketio/handler/ChatMessageHandlerTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/websocket/socketio/handler/MessageLoaderIntegrationTest.java
+/Users/hazel.lee/project/kakao/assigment/test/apps/be/src/test/java/com/ktb/chatapp/websocket/socketio/handler/MessageLoaderTest.java

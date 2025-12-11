@@ -9,6 +9,7 @@ import com.ktb.chatapp.model.User;
 import com.ktb.chatapp.repository.FileRepository;
 import com.ktb.chatapp.repository.MessageRepository;
 import com.ktb.chatapp.repository.UserRepository;
+import com.ktb.chatapp.service.MessageHistoryStore;
 import com.ktb.chatapp.service.MessageReadStatusService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,6 +50,9 @@ class MessageLoaderIntegrationTest {
     @MockitoSpyBean
     private MessageReadStatusService messageReadStatusService;
 
+    @MockitoSpyBean
+    private MessageHistoryStore messageHistoryStore;
+
     private MessageLoader messageLoader;
     private Faker faker;
     private String roomId;
@@ -62,9 +66,7 @@ class MessageLoaderIntegrationTest {
 
         // MessageLoader 인스턴스 생성
         messageLoader = new MessageLoader(
-                messageRepository,
-                userRepository,
-                new MessageResponseMapper(fileRepository),
+                messageHistoryStore,
                 messageReadStatusService
         );
 

@@ -13,12 +13,9 @@ import com.ktb.chatapp.repository.FileRepository;
 import com.ktb.chatapp.repository.MessageRepository;
 import com.ktb.chatapp.repository.RoomRepository;
 import com.ktb.chatapp.repository.UserRepository;
+import com.ktb.chatapp.service.*;
 import com.ktb.chatapp.util.BannedWordChecker;
 import com.ktb.chatapp.websocket.socketio.ai.AiService;
-import com.ktb.chatapp.service.SessionService;
-import com.ktb.chatapp.service.SessionValidationResult;
-import com.ktb.chatapp.service.RateLimitService;
-import com.ktb.chatapp.service.RateLimitCheckResult;
 import com.ktb.chatapp.websocket.socketio.SocketUser;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -48,6 +45,7 @@ public class ChatMessageHandler {
     private final BannedWordChecker bannedWordChecker;
     private final RateLimitService rateLimitService;
     private final MeterRegistry meterRegistry;
+    private final MessageHistoryStore messageHistoryStore;
     
     @OnEvent(CHAT_MESSAGE)
     public void handleChatMessage(SocketIOClient client, ChatMessageRequest data) {
@@ -160,16 +158,17 @@ public class ChatMessageHandler {
             }
 
             Message savedMessage = messageRepository.save(message);
+            MessageResponse messageResponse = createMessageResponse(savedMessage, sender);
+
+            messageHistoryStore.append(roomId, messageResponse);
 
             socketIOServer.getRoomOperations(roomId)
-                    .sendEvent(MESSAGE, createMessageResponse(savedMessage, sender));
+                    .sendEvent(MESSAGE, messageResponse);
 
-            // AI 멘션 처리
             aiService.handleAIMentions(roomId, socketUser.id(), messageContent);
 
             sessionService.updateLastActivity(socketUser.id());
 
-            // Record success metrics
             recordMessageSuccess(messageType);
             timerSample.stop(createTimer("success", messageType));
 
@@ -220,7 +219,7 @@ public class ChatMessageHandler {
 
     private Message handleTextMessage(String roomId, String userId, MessageContent messageContent) {
         if (messageContent.isEmpty()) {
-            return null; // 빈 메시지는 무시
+            return null;
         }
 
         Message message = new Message();
