@@ -14,14 +14,25 @@ public class UserResponse {
     private String id;
     private String name;
     private String email;
-    private String profileImage;
+    private String presignedProfileImage;
 
+    // presigned URL 없이 기본 정보만 반환
     public static UserResponse from(User user) {
         return UserResponse.builder()
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .profileImage(user.getProfileImage() != null ? user.getProfileImage() : "")
+                .presignedProfileImage(user.getProfileImageKey())
+                .build();
+    }
+
+    // presigned URL 포함하여 반환
+    public static UserResponse fromWithPresigned(User user, String presignedUrl) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .presignedProfileImage(presignedUrl)
                 .build();
     }
 }
