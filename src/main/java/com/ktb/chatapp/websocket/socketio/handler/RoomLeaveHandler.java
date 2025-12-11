@@ -104,7 +104,7 @@ public class RoomLeaveHandler {
             systemMessage.setMetadata(new HashMap<>());
 
             Message savedMessage = messageRepository.save(systemMessage);
-            MessageResponse response = messageResponseMapper.mapToMessageResponse(savedMessage, null);
+            MessageResponse response = messageResponseMapper.mapToMessageResponse(savedMessage, null, null);
 
             socketIOServer.getRoomOperations(roomId)
                     .sendEvent(MESSAGE, response);

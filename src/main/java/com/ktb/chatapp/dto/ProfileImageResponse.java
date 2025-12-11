@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 public class ProfileImageResponse {
     private boolean success;
     private String message;
-    private String imageUrl;
+    private String presignedProfileImage;
 }

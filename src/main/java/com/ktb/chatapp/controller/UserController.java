@@ -1,9 +1,6 @@
 package com.ktb.chatapp.controller;
 
-import com.ktb.chatapp.dto.StandardResponse;
-import com.ktb.chatapp.dto.ProfileImageResponse;
-import com.ktb.chatapp.dto.UpdateProfileRequest;
-import com.ktb.chatapp.dto.UserResponse;
+import com.ktb.chatapp.dto.*;
 import com.ktb.chatapp.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,9 +20,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
+
 
 import java.security.Principal;
 
@@ -123,12 +119,13 @@ public class UserController {
     @PostMapping("/profile-image")
     public ResponseEntity<?> uploadProfileImage(
             Principal principal,
-            @RequestParam("profileImage") MultipartFile file) {
+            @RequestBody UploadImageRequestDto uploadImageRequestDto) {
 
         try {
-            ProfileImageResponse response = userService.uploadProfileImage(principal.getName(), file);
+            ProfileImageResponse response = userService.uploadProfileImage(principal.getName(), uploadImageRequestDto);
             return ResponseEntity.ok(response);
         } catch (UsernameNotFoundException e) {
+            e.printStackTrace();
             log.error("프로필 이미지 업로드 실패 - 사용자 없음: {}", e.getMessage());
             return ResponseEntity.status(404).body(StandardResponse.error("사용자를 찾을 수 없습니다."));
         } catch (IllegalArgumentException e) {

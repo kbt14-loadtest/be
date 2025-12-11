@@ -31,7 +31,7 @@ public class MessageResponseMapper {
      * @param sender 메시지 발신자 정보 (null 가능)
      * @return MessageResponse DTO
      */
-    public MessageResponse mapToMessageResponse(Message message, User sender) {
+    public MessageResponse mapToMessageResponse(Message message, User sender, String presignedProfileUrl) {
         MessageResponse.MessageResponseBuilder builder = MessageResponse.builder()
                 .id(message.getId())
                 .content(message.getContent())
@@ -49,7 +49,7 @@ public class MessageResponseMapper {
                     .id(sender.getId())
                     .name(sender.getName())
                     .email(sender.getEmail())
-                    .profileImage(sender.getProfileImage())
+                    .presignedProfileImage(presignedProfileUrl)
                     .build());
         }
 

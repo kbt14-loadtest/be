@@ -18,7 +18,7 @@ public class EncryptionUtil {
     @Value("${app.encryption.key}")
     private String encryptionKey;
     
-    @Value("${app.encryption.salt:defaultSalt123456}")
+    @Value("${app.encryption.salt}")
     private String salt;
     
     private TextEncryptor textEncryptor;
