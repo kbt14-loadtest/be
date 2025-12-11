@@ -22,6 +22,7 @@ public class FileResponse {
     private long size;
     private String user;
     private LocalDateTime uploadDate;
+    private String presignedUrl; // S3 presigned URL
 
     // File 엔티티에서 FileResponse로 변환하는 정적 메서드
     public static FileResponse from(File file) {

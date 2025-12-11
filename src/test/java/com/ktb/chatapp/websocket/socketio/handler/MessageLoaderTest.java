@@ -35,40 +35,42 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class MessageLoaderTest {
 
-    @Autowired
+    @Mock
     private MessageRepository messageRepository;
 
-    @Autowired
+    @Mock
     private UserRepository userRepository;
 
-    private MessageResponseMapper messageResponseMapper;
-
-    @Autowired
+    @Mock
     private FileRepository fileRepository;
 
-    @MockitoSpyBean
+    @Mock
     private MessageReadStatusService messageReadStatusService;
 
-    @MockitoSpyBean
+    @Mock
     private MessageHistoryStore messageHistoryStore;
 
-    @Autowired
+    @Mock
     private ImageUtils imageUtils;
 
     @InjectMocks
     private MessageLoader messageLoader;
 
-    
+    private MessageResponseMapper messageResponseMapper;
+
     private Faker faker;
     private List<Message> testMessages;
     private String roomId;
     private String userId;
-    
+
     @BeforeEach
     void setUp() {
         faker = new Faker();
         roomId = faker.internet().uuid();
         userId = faker.internet().uuid();
+
+        // MessageResponseMapper 인스턴스 생성
+        messageResponseMapper = new MessageResponseMapper(fileRepository, imageUtils);
 
         messageLoader = new MessageLoader(
                 messageRepository,

@@ -104,13 +104,18 @@ public class AuthController {
 
         try {
             // Create user
+            log.info("회원가입 시도 - 이름: {}, 이메일: {}", registerRequest.getName(), registerRequest.getEmail());
+            String encodedPassword = passwordEncoder.encode(registerRequest.getPassword());
+            log.info("원본 비밀번호 길이: {}, 암호화된 비밀번호: {}", registerRequest.getPassword().length(), encodedPassword);
+
             User user = User.builder()
                     .name(registerRequest.getName())
                     .email(registerRequest.getEmail().toLowerCase())
-                    .password(passwordEncoder.encode(registerRequest.getPassword()))
+                    .password(encodedPassword)
                     .build();
 
             user = userRepository.save(user);
+            log.info("사용자 저장 완료 - ID: {}, Email: {}", user.getId(), user.getEmail());
 
             LoginResponse response = LoginResponse.builder()
                     .success(true)
@@ -162,14 +167,19 @@ public class AuthController {
         
         try {
             // Authenticate user
+            log.info("로그인 시도 - 입력 이메일: {}", loginRequest.getEmail());
             User user = userRepository.findByEmail(loginRequest.getEmail().toLowerCase())
                     .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+            log.info("사용자 찾음 - ID: {}, Email: {}", user.getId(), user.getEmail());
+            log.info("저장된 암호화 비밀번호: {}", user.getPassword());
+
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             user.getEmail(),
                             loginRequest.getPassword()
                     )
             );
+            log.info("인증 성공 - Email: {}", user.getEmail());
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             

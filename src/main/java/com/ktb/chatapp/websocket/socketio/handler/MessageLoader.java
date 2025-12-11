@@ -15,7 +15,7 @@ import jakarta.annotation.Nullable;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,16 +75,19 @@ public class MessageLoader {
             int limit,
             String userId
     ) {
-        List<MessageResponse> history = messageHistoryStore.getAll(roomId);
-        if (history.isEmpty()) {
+        int fetchSize = limit * 2;
+
+        List<MessageResponse> historyTail = messageHistoryStore.getLast(roomId, fetchSize);
+        if (historyTail.isEmpty()) {
             return null;
         }
 
         long beforeMillis = before.toInstant(ZoneOffset.UTC).toEpochMilli();
 
-        List<MessageResponse> filtered = history.stream()
+        List<MessageResponse> filtered = historyTail.stream()
                 .filter(m -> m.getTimestamp() < beforeMillis)
-                .collect(Collectors.toList());
+                .sorted((a, b) -> Long.compare(a.getTimestamp(), b.getTimestamp()))
+                .toList();
 
         if (filtered.isEmpty()) {
             return null;
@@ -97,7 +100,7 @@ public class MessageLoader {
         var messageIds = page.stream().map(MessageResponse::getId).toList();
         messageReadStatusService.updateReadStatus(messageIds, userId);
 
-        boolean hasMore = fromIndex > 0;
+        boolean hasMore = true;
 
         return FetchMessagesResponse.builder()
                 .messages(page)
@@ -111,29 +114,47 @@ public class MessageLoader {
             int limit,
             String userId
     ) {
+        log.debug("Loading from DB - roomId: {}, before: {}, limit: {}", roomId, before, limit);
         Pageable pageable = PageRequest.of(0, limit, Sort.by("timestamp").descending());
 
         Page<Message> messagePage = messageRepository
                 .findByRoomIdAndIsDeletedAndTimestampBefore(roomId, false, before, pageable);
 
         List<Message> messages = messagePage.getContent();
+        log.debug("Found {} messages in DB", messages.size());
 
         List<Message> sortedMessages = messages.reversed();
 
         var messageIds = sortedMessages.stream().map(Message::getId).toList();
         messageReadStatusService.updateReadStatus(messageIds, userId);
 
+        // 사용자 ID 수집 및 배치 조회로 최적화
+        Set<String> senderIds = sortedMessages.stream()
+                .map(Message::getSenderId)
+                .filter(id -> id != null && !id.isEmpty())
+                .collect(Collectors.toSet());
+
+        Map<String, User> userMap = new HashMap<>();
+        if (!senderIds.isEmpty()) {
+            List<User> users = userRepository.findAllById(senderIds);
+            users.forEach(user -> userMap.put(user.getId(), user));
+            log.debug("Batch loaded {} users for {} messages", users.size(), messages.size());
+        }
+
+        // 메시지 응답 생성
         List<MessageResponse> messageResponses = sortedMessages.stream()
                 .map(message -> {
-                    var user = findUserById(message.getSenderId());
-                    String presignedProfileUrl="";
+                    User user = userMap.get(message.getSenderId());
+                    String presignedProfileUrl = "";
                     if (user != null && user.getProfileImageKey() != null) {
-                        presignedProfileUrl = imageUtils.generatePresignedUrlWithKey(user.getProfileImageKey(), Duration.ofHours(1));
+                        presignedProfileUrl = imageUtils.generatePresignedUrlWithKey(
+                                user.getProfileImageKey(), Duration.ofHours(1));
                     }
                     return messageResponseMapper.mapToMessageResponse(message, user, presignedProfileUrl);
                 })
                 .collect(Collectors.toList());
 
+        log.debug("Mapped {} message responses with optimized user loading", messageResponses.size());
         boolean hasMore = messagePage.hasNext();
 
         return FetchMessagesResponse.builder()

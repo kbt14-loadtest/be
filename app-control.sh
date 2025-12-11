@@ -20,7 +20,7 @@ LOG_DIR="logs"
 LOG_FILE="${LOG_DIR}/app.log"
 HEALTH_CHECK_URL="http://localhost:5001/api/health"
 HEALTH_CHECK_TIMEOUT=60  # seconds
-HEALTH_CHECK_INTERVAL=2  # seconds
+HEALTH_CHECK_INTERVAL=5  # seconds
 
 # JVM Options
 JVM_OPTS="${JVM_OPTS:--Xmx1024m -Xms512m}"

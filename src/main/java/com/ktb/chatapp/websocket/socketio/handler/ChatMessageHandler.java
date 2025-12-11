@@ -15,6 +15,7 @@ import com.ktb.chatapp.repository.RoomRepository;
 import com.ktb.chatapp.repository.UserRepository;
 import com.ktb.chatapp.service.*;
 import com.ktb.chatapp.util.BannedWordChecker;
+import com.ktb.chatapp.util.image.ImageUtils;
 import com.ktb.chatapp.websocket.socketio.ai.AiService;
 import com.ktb.chatapp.websocket.socketio.SocketUser;
 import io.micrometer.core.instrument.Counter;
@@ -46,6 +47,7 @@ public class ChatMessageHandler {
     private final RateLimitService rateLimitService;
     private final MeterRegistry meterRegistry;
     private final MessageHistoryStore messageHistoryStore;
+    private final ImageUtils imageUtils;
     
     @OnEvent(CHAT_MESSAGE)
     public void handleChatMessage(SocketIOClient client, ChatMessageRequest data) {
@@ -188,15 +190,52 @@ public class ChatMessageHandler {
 
     private Message handleFileMessage(String roomId, String userId, MessageContent messageContent, Map<String, Object> fileData) {
         if (fileData == null || fileData.get("_id") == null) {
+            log.error("Invalid file data - fileData: {}", fileData);
             throw new IllegalArgumentException("파일 데이터가 올바르지 않습니다.");
         }
 
         String fileId = (String) fileData.get("_id");
+        log.debug("Handling file message - roomId: {}, userId: {}, fileId: {}", roomId, userId, fileId);
+
         File file = fileRepository.findById(fileId).orElse(null);
 
-        if (file == null || !file.getUser().equals(userId)) {
-            throw new IllegalStateException("파일을 찾을 수 없거나 접근 권한이 없습니다.");
+        // 프론트엔드가 metadata 저장을 건너뛰고 imageKey를 직접 보낸 경우 임시 처리
+        if (file == null && fileId.startsWith("public/chat/files/")) {
+            log.warn("File entity not found but imageKey detected. Creating temporary File entity - imageKey: {}", fileId);
+
+            // imageKey에서 파일명 추출
+            String filename = fileId.substring(fileId.lastIndexOf('/') + 1);
+
+            // 임시 File 엔티티 생성
+            file = File.builder()
+                    .filename(filename)
+                    .originalname(filename)
+                    .mimetype(fileData.get("mimetype") != null ? (String) fileData.get("mimetype") : "application/octet-stream")
+                    .size(fileData.get("size") != null ? ((Number) fileData.get("size")).longValue() : 0L)
+                    .path(fileId)
+                    .user(userId)
+                    .uploadDate(LocalDateTime.now())
+                    .build();
+
+            file = fileRepository.save(file);
+            fileId = file.getId();  // MongoDB의 실제 ID로 업데이트
+
+            log.info("Temporary File entity created - fileId: {}, imageKey: {}", fileId, file.getPath());
         }
+
+        if (file == null) {
+            log.error("File not found - fileId: {}, userId: {}", fileId, userId);
+            throw new IllegalStateException("파일을 찾을 수 없습니다. 파일 ID: " + fileId);
+        }
+
+        if (!file.getUser().equals(userId)) {
+            log.error("File access denied - fileId: {}, file owner: {}, current user: {}",
+                    fileId, file.getUser(), userId);
+            throw new IllegalStateException("파일에 접근할 권한이 없습니다.");
+        }
+
+        log.info("File message validated successfully - fileId: {}, userId: {}, filename: {}",
+                fileId, userId, file.getOriginalname());
 
         Message message = new Message();
         message.setRoomId(roomId);
@@ -246,7 +285,26 @@ public class ChatMessageHandler {
 
         if (message.getFileId() != null) {
             fileRepository.findById(message.getFileId())
-                    .ifPresent(file -> messageResponse.setFile(FileResponse.from(file)));
+                    .ifPresent(file -> {
+                        // S3 presigned URL 생성
+                        String presignedUrl = null;
+                        if (file.getPath() != null && !file.getPath().isEmpty()) {
+                            presignedUrl = imageUtils.generatePresignedUrlWithKey(file.getPath(), Duration.ofHours(1));
+                        }
+
+                        FileResponse fileResponse = FileResponse.builder()
+                                .id(file.getId())
+                                .filename(file.getFilename())
+                                .originalname(file.getOriginalname())
+                                .mimetype(file.getMimetype())
+                                .size(file.getSize())
+                                .user(file.getUser())
+                                .uploadDate(file.getUploadDate())
+                                .presignedUrl(presignedUrl)
+                                .build();
+
+                        messageResponse.setFile(fileResponse);
+                    });
         }
 
         return messageResponse;

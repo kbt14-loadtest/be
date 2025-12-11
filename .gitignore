@@ -1,1 +1,6 @@
 uploads/*
+
+# SSH keys (보안을 위해 절대 커밋하지 않음)
+ssh/
+*.pem
+*.key

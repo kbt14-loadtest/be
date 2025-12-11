@@ -6,6 +6,8 @@ import com.ktb.chatapp.dto.UserResponse;
 import com.ktb.chatapp.model.Message;
 import com.ktb.chatapp.model.User;
 import com.ktb.chatapp.repository.FileRepository;
+import com.ktb.chatapp.util.image.ImageUtils;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Component;
 public class MessageResponseMapper {
 
     private final FileRepository fileRepository;
+    private final ImageUtils imageUtils;
 
     /**
      * Message 엔티티를 MessageResponse DTO로 변환
@@ -56,13 +59,38 @@ public class MessageResponseMapper {
         // 파일 정보 설정
         Optional.ofNullable(message.getFileId())
                 .flatMap(fileRepository::findById)
-                .map(file -> FileResponse.builder()
-                        .id(file.getId())
-                        .filename(file.getFilename())
-                        .originalname(file.getOriginalname())
-                        .mimetype(file.getMimetype())
-                        .size(file.getSize())
-                        .build())
+                .map(file -> {
+                    try {
+                        // S3 presigned URL 생성
+                        String presignedUrl = null;
+                        if (file.getPath() != null && !file.getPath().isEmpty()) {
+                            presignedUrl = imageUtils.generatePresignedUrlWithKey(file.getPath(), Duration.ofHours(1));
+                            log.debug("Generated presigned URL for file: {}", file.getId());
+                        } else {
+                            log.warn("File {} has no path, skipping presigned URL generation", file.getId());
+                        }
+
+                        return FileResponse.builder()
+                                .id(file.getId())
+                                .filename(file.getFilename())
+                                .originalname(file.getOriginalname())
+                                .mimetype(file.getMimetype())
+                                .size(file.getSize())
+                                .presignedUrl(presignedUrl)
+                                .build();
+                    } catch (Exception e) {
+                        log.error("Error generating presigned URL for file: {}", file.getId(), e);
+                        // 에러가 발생해도 파일 정보는 반환 (presignedUrl만 null)
+                        return FileResponse.builder()
+                                .id(file.getId())
+                                .filename(file.getFilename())
+                                .originalname(file.getOriginalname())
+                                .mimetype(file.getMimetype())
+                                .size(file.getSize())
+                                .presignedUrl(null)
+                                .build();
+                    }
+                })
                 .ifPresent(builder::file);
 
         // 메타데이터 설정

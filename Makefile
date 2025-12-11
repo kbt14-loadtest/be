@@ -1,12 +1,23 @@
 SHELL := /bin/bash
 .ONESHELL:
-.PHONY: setup-java verify-java verify-docker setup-env dev build build-jar build-jar-with-tests test clean install cluster-up deploy deploy-jar restart-servers status-servers deploy-o11y o11y-up o11y-down o11y-logs o11y-restart
+.PHONY: setup-java verify-java verify-docker setup-env dev build build-jar build-jar-with-tests test clean install cluster-up verify-ssh-key setup-ssh-key install-jre-remote install-redis-remote deploy deploy-jar deploy-full restart-servers status-servers stop-servers deploy-o11y o11y-up o11y-down o11y-logs o11y-restart
 
+SSH_USER ?= ubuntu
 COMPOSE_O11Y_FILE ?= docker-compose.o11y.yaml
 BACKEND_SCALE ?= 3
-DEPLOY_SERVERS ?= your-remote-server1 your-remote-server2 your-remote-server3
+
+# EC2 서버 목록 (IP 주소 또는 별칭)
+# 사용법: make deploy-jar SERVERS="server1 server2" 또는 make deploy-jar (전체)
+DEPLOY_SERVERS ?= 13.125.72.70 52.79.78.194 54.180.242.111 3.36.49.34 43.202.62.120 43.201.72.226 43.200.252.168 13.125.239.203 13.125.98.139 3.36.97.184
+
 DEPLOY_PATH ?= /home/ubuntu/ktb-chat-backend
 JVM_OPTS ?= -Xmx1024m
+
+# SSH 키 경로 (상대 경로)
+SSH_KEY ?= .ssh/ktb-14.pem
+
+# 실제 배포할 서버 목록 (SERVERS 변수가 제공되면 우선 사용)
+SERVERS ?= $(DEPLOY_SERVERS)
 
 # SDKMAN 초기화 매크로
 SDKMAN_INIT = source "$$HOME/.sdkman/bin/sdkman-init.sh" 2>/dev/null || true
@@ -128,43 +139,117 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@$(SDKMAN_INIT) && ./mvnw clean
 
+# SSH 키 디렉토리 및 권한 설정
+setup-ssh-key:
+	@echo "🔑 Setting up SSH key directory..."
+	@mkdir -p ./ssh
+	@if [ -f "$(SSH_KEY)" ]; then \
+		chmod 400 $(SSH_KEY); \
+		echo "✅ SSH key permissions set to 400"; \
+	else \
+		echo "⚠️  SSH key not found at $(SSH_KEY)"; \
+		echo ""; \
+		echo "Please place your SSH key at:"; \
+		echo "  $(SSH_KEY)"; \
+		echo ""; \
+		echo "Then run:"; \
+		echo "  chmod 400 $(SSH_KEY)"; \
+	fi
+
+# SSH 키 존재 확인
+verify-ssh-key:
+	@if [ ! -f "$(SSH_KEY)" ]; then \
+		echo "❌ SSH key not found: $(SSH_KEY)"; \
+		echo ""; \
+		echo "Please ensure the SSH key exists at:"; \
+		echo "  $(SSH_KEY)"; \
+		echo ""; \
+		echo "Or specify a different key:"; \
+		echo "  make deploy-jar SSH_KEY=path/to/your/key.pem"; \
+		echo ""; \
+		echo "To set up the SSH key directory:"; \
+		echo "  make setup-ssh-key"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✅ SSH key found: $(SSH_KEY)"
+
+# 원격 서버에 JRE 설치
+install-jre-remote: verify-ssh-key
+	@echo "☕ Installing JRE on remote servers..."
+	@echo "   Using SSH key: $(SSH_KEY)"
+	@echo "   Target servers: $(SERVERS)"
+	@echo ""
+	@for server in $(SERVERS); do \
+		echo "  → Installing JRE on $$server..."; \
+		ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "\
+			echo '  [$$server] Updating package list...' && \
+			sudo apt-get update -qq && \
+			echo '  [$$server] Installing OpenJDK 21 JRE...' && \
+			sudo apt-get install -y openjdk-21-jre-headless && \
+			echo '  [$$server] Verifying Java installation...' && \
+			java -version" && \
+		echo "  ✅ $$server JRE installation completed" || \
+		echo "  ❌ $$server JRE installation failed"; \
+	done
+	@echo ""
+	@echo "✅ All JRE installations completed!"
+
 # 원격 서버로 배포 (기존 방식 - 소스 코드 전체)
-deploy:
+deploy: verify-ssh-key
 	@echo "📦 Deploying to remote servers..."
-	@for server in $(DEPLOY_SERVERS); do \
+	@echo "   Using SSH key: $(SSH_KEY)"
+	@echo "   Target servers: $(SERVERS)"
+	@echo ""
+	@for server in $(SERVERS); do \
 		echo "  → Deploying to $$server..."; \
-		ssh $$server "mkdir -p $(DEPLOY_PATH)"; \
-		rsync -avz --delete --exclude '.git' --exclude '.env' --exclude 'target' \
-			. $$server:$(DEPLOY_PATH); \
+		ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "mkdir -p $(DEPLOY_PATH)"; \
+		rsync -avz -e "ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no" --delete --exclude '.git' --exclude '.env' --exclude 'target' \
+			. $(SSH_USER)@$$server:$(DEPLOY_PATH); \
 		echo "  ✅ $$server completed"; \
 	done
 	@echo "✅ All deployments completed!"
 
+# 전체 배포 (서버 중지 → JRE 설치 → 배포)
+deploy-full: stop-servers install-jre-remote deploy
+	@echo ""
+	@echo "✅ Full deployment completed!"
+	@echo ""
+	@echo "💡 Restart servers with:"
+	@echo "   make restart-servers"
+
 # JAR 파일 배포 (신규 방식 - JAR + 실행 스크립트만, 병렬 실행)
-deploy-jar:
+deploy-jar: verify-ssh-key
 	@echo "📦 Deploying JAR to remote servers (parallel)..."
 	@if [ ! -f target/ktb-chat-backend-0.0.1-SNAPSHOT.jar ]; then \
 		echo "❌ JAR file not found!"; \
 		echo "   Run 'make build-jar' first"; \
 		exit 1; \
 	fi
+	@echo "   Using SSH key: $(SSH_KEY)"
+	@echo "   Target servers: $(SERVERS)"
 	@echo ""
 	@pids=""; \
-	for server in $(DEPLOY_SERVERS); do \
+	for server in $(SERVERS); do \
 		echo "  → Starting deployment to $$server..."; \
-		(ssh $$server "mkdir -p $(DEPLOY_PATH)/{target,logs}" && \
+		(ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "mkdir -p $(DEPLOY_PATH)/{target,logs}" && \
 		 echo "    [$$server] Uploading JAR file..." && \
-		 rsync -az target/ktb-chat-backend-0.0.1-SNAPSHOT.jar \
-			$$server:$(DEPLOY_PATH)/target/ && \
+		 rsync -az -e "ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no" \
+			target/ktb-chat-backend-0.0.1-SNAPSHOT.jar \
+			$(SSH_USER)@$$server:$(DEPLOY_PATH)/target/ && \
 		 echo "    [$$server] Uploading control script..." && \
-		 rsync -az app-control.sh $$server:$(DEPLOY_PATH)/ && \
-		 ssh $$server "chmod +x $(DEPLOY_PATH)/app-control.sh" && \
+		 rsync -az -e "ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no" \
+			app-control.sh $(SSH_USER)@$$server:$(DEPLOY_PATH)/ && \
+		 echo "    [$$server] Setting execute permission for app-control.sh..." && \
+		 ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "\
+			chmod 755 $(DEPLOY_PATH)/app-control.sh" && \
 		 if [ -f .env ]; then \
-			if ssh $$server "[ -f $(DEPLOY_PATH)/.env ]"; then \
+			if ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "[ -f $(DEPLOY_PATH)/.env ]"; then \
 				echo "    [$$server] .env already exists (not overwriting)"; \
 			else \
 				echo "    [$$server] Uploading .env file..." && \
-				rsync -az .env $$server:$(DEPLOY_PATH)/; \
+				rsync -az -e "ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no" \
+					.env $(SSH_USER)@$$server:$(DEPLOY_PATH)/; \
 			fi; \
 		 fi && \
 		 echo "  ✅ $$server deployment completed" || \
@@ -180,14 +265,17 @@ deploy-jar:
 	@echo "💡 Restart servers with:"
 	@echo "   make restart-servers"
 
+
 # 원격 서버 애플리케이션 재시작 (병렬 실행)
-restart-servers:
+restart-servers: verify-ssh-key
 	@echo "🔄 Restarting applications on remote servers (parallel)..."
+	@echo "   Using SSH key: $(SSH_KEY)"
+	@echo "   Target servers: $(SERVERS)"
 	@echo ""
 	@pids=""; \
-	for server in $(DEPLOY_SERVERS); do \
+	for server in $(SERVERS); do \
 		echo "  → Starting restart on $$server..."; \
-		(ssh $$server "cd $(DEPLOY_PATH) && ./app-control.sh restart" && \
+		(ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "cd $(DEPLOY_PATH) && sudo ./app-control.sh restart" && \
 		 echo "  ✅ $$server restart completed" || \
 		 echo "  ❌ $$server restart failed") & \
 		pids="$$pids $$!"; \
@@ -202,13 +290,35 @@ restart-servers:
 	@echo "   make status-servers"
 
 # 원격 서버 상태 확인
-status-servers:
+status-servers: verify-ssh-key
 	@echo "📊 Checking application status on remote servers..."
-	@for server in $(DEPLOY_SERVERS); do \
+	@echo "   Using SSH key: $(SSH_KEY)"
+	@echo "   Target servers: $(SERVERS)"
+	@for server in $(SERVERS); do \
 		echo ""; \
 		echo "  → Status of $$server:"; \
-		ssh $$server "cd $(DEPLOY_PATH) && ./app-control.sh status" || echo "    ❌ Failed to get status"; \
+		ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "cd $(DEPLOY_PATH) && sudo ./app-control.sh status" || echo "    ❌ Failed to get status"; \
 	done
+
+# 원격 서버 애플리케이션 중지 (병렬 실행)
+stop-servers: verify-ssh-key
+	@echo "🛑 Stopping applications on remote servers (parallel)..."
+	@echo "   Using SSH key: $(SSH_KEY)"
+	@echo "   Target servers: $(SERVERS)"
+	@echo ""
+	@pids=""; \
+	for server in $(SERVERS); do \
+		echo "  → Starting stop on $$server..."; \
+		(ssh -i $(SSH_KEY) -o StrictHostKeyChecking=no $(SSH_USER)@$$server "cd $(DEPLOY_PATH) && sudo ./app-control.sh stop" && \
+		 echo "  ✅ $$server stopped" || \
+		 echo "  ❌ $$server stop failed") & \
+		pids="$$pids $$!"; \
+	done; \
+	echo ""; \
+	echo "⏳ Waiting for all stops to complete..."; \
+	wait $$pids; \
+	echo ""
+	@echo "✅ All servers stopped!"
 
 # 모니터링 스택 시작 (Prometheus + Grafana)
 o11y-up: setup-env verify-docker
@@ -247,3 +357,4 @@ deploy-o11y:
 	@echo "   SSH to ktb-o11y and edit ~/o11y/.env"
 	@echo ""
 	@echo "✅ Monitoring stack deployment completed!"
+

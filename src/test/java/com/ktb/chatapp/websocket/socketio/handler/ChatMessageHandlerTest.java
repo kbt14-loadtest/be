@@ -11,6 +11,7 @@ import com.ktb.chatapp.repository.RoomRepository;
 import com.ktb.chatapp.repository.UserRepository;
 import com.ktb.chatapp.service.*;
 import com.ktb.chatapp.util.BannedWordChecker;
+import com.ktb.chatapp.util.image.ImageUtils;
 import com.ktb.chatapp.websocket.socketio.SocketUser;
 import com.ktb.chatapp.websocket.socketio.ai.AiService;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -42,10 +43,10 @@ class ChatMessageHandlerTest {
     @Mock private SessionService sessionService;
     @Mock private BannedWordChecker bannedWordChecker;
     @Mock private RateLimitService rateLimitService;
-    @Mock
-    private MessageHistoryStore messageHistoryStore;
-    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+    @Mock private MessageHistoryStore messageHistoryStore;
+    @Mock private ImageUtils imageUtils;
 
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
     private ChatMessageHandler handler;
 
     @BeforeEach
@@ -62,7 +63,8 @@ class ChatMessageHandlerTest {
                         bannedWordChecker,
                         rateLimitService,
                         meterRegistry,
-                        messageHistoryStore);
+                        messageHistoryStore,
+                        imageUtils);
     }
 
     @Test

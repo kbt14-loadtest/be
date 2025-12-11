@@ -94,8 +94,11 @@ public class RoomJoinHandler {
             joinMessage = messageRepository.save(joinMessage);
 
             // 초기 메시지 로드
+            log.debug("Loading initial messages for room: {}, userId: {}", roomId, userId);
             FetchMessagesRequest req = new FetchMessagesRequest(roomId, 30, null);
             FetchMessagesResponse messageLoadResult = messageLoader.loadMessages(req, userId);
+            log.debug("Loaded {} messages, hasMore: {}",
+                messageLoadResult.getMessages().size(), messageLoadResult.isHasMore());
 
             // 업데이트된 room 다시 조회하여 최신 participantIds 가져오기
             Optional<Room> roomOpt = roomRepository.findById(roomId);
