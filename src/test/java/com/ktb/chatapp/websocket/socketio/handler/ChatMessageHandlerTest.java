@@ -42,9 +42,8 @@ class ChatMessageHandlerTest {
     @Mock private SessionService sessionService;
     @Mock private BannedWordChecker bannedWordChecker;
     @Mock private RateLimitService rateLimitService;
-    @Mock
-    private MessageHistoryStore messageHistoryStore;
-    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+    @Mock private MeterRegistry meterRegistry;
+    @Mock private MessageHistoryStore messageHistoryStore;
 
     private ChatMessageHandler handler;
 

@@ -46,8 +46,6 @@ class MessageLoaderIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    private MessageResponseMapper messageResponseMapper;
-
     @Autowired
     private FileRepository fileRepository;
 
@@ -56,6 +54,9 @@ class MessageLoaderIntegrationTest {
 
     @MockitoSpyBean
     private MessageHistoryStore messageHistoryStore;
+
+    @MockitoSpyBean
+    private MessageResponseMapper messageResponseMapper;
 
     @Autowired
     private ImageUtils imageUtils;
