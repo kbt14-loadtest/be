@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MessageHistoryStore {
 
-    private static final int MAX_MESSAGES = 99999;
+    private static final int MAX_MESSAGES = 2000;
     private static final Duration TTL = Duration.ZERO;
 
     private final RedisTemplate<String, MessageResponse> messageResponseRedisTemplate;
@@ -40,12 +40,21 @@ public class MessageHistoryStore {
                 TTL);
     }
 
-    public List<MessageResponse> getAll(String roomId) {
+    public List<MessageResponse> getLast(String roomId, int limit) {
         String key = buildKey(roomId);
+        Long size = messageResponseRedisTemplate.opsForList().size(key);
+        if (size == null || size == 0) {
+            return List.of();
+        }
+
+        long end = size - 1;
+        long start = Math.max(end - (limit - 1), 0);
+
         List<MessageResponse> list =
-                messageResponseRedisTemplate.opsForList().range(key, 0, -1);
+                messageResponseRedisTemplate.opsForList().range(key, start, end);
         return list != null ? list : List.of();
     }
+
 
     public long getSize(String roomId) {
         String key = buildKey(roomId);

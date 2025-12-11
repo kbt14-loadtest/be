@@ -75,16 +75,19 @@ public class MessageLoader {
             int limit,
             String userId
     ) {
-        List<MessageResponse> history = messageHistoryStore.getAll(roomId);
-        if (history.isEmpty()) {
+        int fetchSize = limit * 2;
+
+        List<MessageResponse> historyTail = messageHistoryStore.getLast(roomId, fetchSize);
+        if (historyTail.isEmpty()) {
             return null;
         }
 
         long beforeMillis = before.toInstant(ZoneOffset.UTC).toEpochMilli();
 
-        List<MessageResponse> filtered = history.stream()
+        List<MessageResponse> filtered = historyTail.stream()
                 .filter(m -> m.getTimestamp() < beforeMillis)
-                .collect(Collectors.toList());
+                .sorted((a, b) -> Long.compare(a.getTimestamp(), b.getTimestamp()))
+                .toList();
 
         if (filtered.isEmpty()) {
             return null;
@@ -97,7 +100,7 @@ public class MessageLoader {
         var messageIds = page.stream().map(MessageResponse::getId).toList();
         messageReadStatusService.updateReadStatus(messageIds, userId);
 
-        boolean hasMore = fromIndex > 0;
+        boolean hasMore = true;
 
         return FetchMessagesResponse.builder()
                 .messages(page)
