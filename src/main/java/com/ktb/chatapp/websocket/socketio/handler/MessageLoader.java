@@ -9,7 +9,10 @@ import com.ktb.chatapp.repository.MessageRepository;
 import com.ktb.chatapp.repository.UserRepository;
 import com.ktb.chatapp.service.MessageHistoryStore;
 import com.ktb.chatapp.service.MessageReadStatusService;
+import com.ktb.chatapp.util.image.ImageUtils;
 import jakarta.annotation.Nullable;
+
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -37,6 +40,7 @@ public class MessageLoader {
     private final MessageResponseMapper messageResponseMapper;
     private final MessageReadStatusService messageReadStatusService;
     private final MessageHistoryStore messageHistoryStore;
+    private final ImageUtils imageUtils;
 
     public FetchMessagesResponse loadMessages(FetchMessagesRequest data, String userId) {
         String roomId = data.roomId();
@@ -122,7 +126,11 @@ public class MessageLoader {
         List<MessageResponse> messageResponses = sortedMessages.stream()
                 .map(message -> {
                     var user = findUserById(message.getSenderId());
-                    return messageResponseMapper.mapToMessageResponse(message, user);
+                    String presignedProfileUrl="";
+                    if (user != null && user.getProfileImageKey() != null) {
+                        presignedProfileUrl = imageUtils.generatePresignedUrlWithKey(user.getProfileImageKey(), Duration.ofHours(1));
+                    }
+                    return messageResponseMapper.mapToMessageResponse(message, user, presignedProfileUrl);
                 })
                 .collect(Collectors.toList());
 

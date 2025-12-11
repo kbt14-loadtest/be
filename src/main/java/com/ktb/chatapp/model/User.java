@@ -35,7 +35,7 @@ public class User {
 
     private String password;
 
-    private String profileImage;
+    private String profileImageKey;
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -82,4 +82,9 @@ public class User {
             }
         }
     }
+
+    public void deleteProfileImage() {
+        this.profileImageKey = null;
+    }
+
 }
