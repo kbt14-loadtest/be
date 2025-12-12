@@ -9,11 +9,9 @@ import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
-/**
- * Redis Store Factory configuration for multi-instance Socket.IO deployment.
- * Uses Redisson client for Redis Pub/Sub communication across instances.
- */
 @Slf4j
 @Configuration
 public class RedisStoreFactory {
@@ -27,22 +25,46 @@ public class RedisStoreFactory {
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
 
-    @Value("${app.redis.cluster.nodes}")
+    @Value("${app.redis.cluster.nodes:}")
     private List<String> clusterNodes;
 
-    @Bean
+    private final Environment environment;
+
+    public RedisStoreFactory(Environment environment) {
+        this.environment = environment;
+    }
+
+    @Bean(destroyMethod = "shutdown")
     public RedissonClient redissonClient() {
         Config config = new Config();
-        var cluster = config.useClusterServers()
-            .addNodeAddress(
-                clusterNodes.stream()
-                    .map(node -> node.startsWith("redis://") ? node : "redis://" + node)
-                    .toArray(String[]::new)
-            );
-        // 비밀번호 있으면 여기
-        if (redisPassword != null && !redisPassword.isEmpty()) {
-            cluster.setPassword(redisPassword);
+
+        // ✅ dev 프로필에서는 싱글 Redis 사용
+        if (environment.acceptsProfiles(Profiles.of("dev"))) {
+            String address = "redis://" + redisHost + ":" + redisPort;
+            log.info("[Redis] Using SINGLE server mode for dev: {}", address);
+
+            var single = config.useSingleServer()
+                .setAddress(address);
+
+            if (redisPassword != null && !redisPassword.isEmpty()) {
+                single.setPassword(redisPassword);
+            }
+        } else {
+            // 필요하면 다른 프로필에서만 클러스터 사용
+            log.info("[Redis] Using CLUSTER mode with nodes: {}", clusterNodes);
+
+            var cluster = config.useClusterServers()
+                .addNodeAddress(
+                    clusterNodes.stream()
+                        .map(node -> node.startsWith("redis://") ? node : "redis://" + node)
+                        .toArray(String[]::new)
+                );
+
+            if (redisPassword != null && !redisPassword.isEmpty()) {
+                cluster.setPassword(redisPassword);
+            }
         }
+
         return Redisson.create(config);
     }
 
